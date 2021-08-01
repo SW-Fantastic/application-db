@@ -26,8 +26,13 @@ public  class EMFProviderFactory {
 
     private List<Class> entities = new ArrayList<>();
 
-    public EMFProviderFactory(List<Class> entities) {
+    // 允许用户有限度的在代码中配置一些属性。
+
+    private String url;
+
+    public EMFProviderFactory(List<Class> entities,String url) {
         this.entities = entities;
+        this.url = url;
     }
 
     @PostConstruct
@@ -35,11 +40,30 @@ public  class EMFProviderFactory {
         try {
             Properties properties = new Properties();
             InputStream inputStream = this.getClass().getModule().getResourceAsStream("hibernate.properties");
+            InputStream defaultPropSteam = EMFProvider.class.getModule().getResourceAsStream("hibernate.properties");
+
+            Properties defaultProp = new Properties();
+            defaultProp.load(defaultPropSteam);
+
             if (inputStream == null) {
-                inputStream = EMFProvider.class.getModule().getResourceAsStream("hibernate.properties");
+                properties = defaultProp;
+            } else {
+                properties.load(inputStream);
+                inputStream.close();
             }
-            properties.load(inputStream);
-            inputStream.close();
+
+            for (Map.Entry<Object,Object> prop: defaultProp.entrySet()) {
+                if (!properties.contains(prop.getKey())) {
+                    properties.put(prop.getKey(),prop.getValue());
+                }
+            }
+
+            defaultPropSteam.close();
+
+            if (this.url != null) {
+                properties.put("hibernate.connection.url",url);
+            }
+
             properties.put(org.hibernate.jpa.AvailableSettings.LOADED_CLASSES,entities);
 
             this.entityFactory = Persistence.createEntityManagerFactory("default", properties);

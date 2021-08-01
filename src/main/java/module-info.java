@@ -4,7 +4,7 @@ module swdc.application.data {
     requires swdc.application.dependency;
     requires hibernate.entitymanager;
     requires java.persistence;
-    requires slf4j.api;
+    requires org.slf4j;
     requires jakarta.inject;
     requires org.hibernate.orm.core;
     requires jakarta.annotation;

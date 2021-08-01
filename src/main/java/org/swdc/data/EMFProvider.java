@@ -14,10 +14,14 @@ public abstract class EMFProvider implements Provider<EMFProviderFactory> {
         if (factory != null) {
             return factory;
         }
-        factory = new EMFProviderFactory(registerEntities());
+        factory = new EMFProviderFactory(registerEntities(),this.getComputeURL());
         return factory;
     }
 
     public abstract List<Class> registerEntities();
+
+    public String getComputeURL() {
+        return null;
+    }
 
 }
