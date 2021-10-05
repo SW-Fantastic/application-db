@@ -40,7 +40,6 @@ public class EMFProviderFactory {
         this.entities = entities;
     }
 
-    @PostConstruct
     public void initialize() {
         try {
             InputStream defaultPropSteam = EMFProvider.class.getModule().getResourceAsStream("hibernate.properties");

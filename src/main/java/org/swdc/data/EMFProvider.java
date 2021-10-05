@@ -17,6 +17,7 @@ public abstract class EMFProvider implements Provider<EMFProviderFactory> {
             return factory;
         }
         factory = new EMFProviderFactory(registerEntities());
+        factory.initialize();
 
         Configure configure = this.getClass().getAnnotation(Configure.class);
         if (configure != null) {
