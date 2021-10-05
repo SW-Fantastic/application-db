@@ -16,7 +16,7 @@ import java.io.InputStream;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-public  class EMFProviderFactory {
+public class EMFProviderFactory {
 
     private EntityManagerFactory entityFactory;
 
@@ -26,47 +26,72 @@ public  class EMFProviderFactory {
 
     private List<Class> entities = new ArrayList<>();
 
+    private Properties hibernateConfig = null;
+
     // 允许用户有限度的在代码中配置一些属性。
 
-    private String url;
+   // private String url;
 
-    public EMFProviderFactory(List<Class> entities,String url) {
+   // private String driver;
+
+   // private String dialect;
+
+    public EMFProviderFactory(List<Class> entities) {
         this.entities = entities;
-        this.url = url;
     }
 
     @PostConstruct
     public void initialize() {
         try {
-            Properties properties = new Properties();
-            InputStream inputStream = this.getClass().getModule().getResourceAsStream("hibernate.properties");
             InputStream defaultPropSteam = EMFProvider.class.getModule().getResourceAsStream("hibernate.properties");
 
-            Properties defaultProp = new Properties();
-            defaultProp.load(defaultPropSteam);
+            hibernateConfig = new Properties();
+            hibernateConfig.load(defaultPropSteam);
 
-            if (inputStream == null) {
-                properties = defaultProp;
-            } else {
+            defaultPropSteam.close();
+        } catch (Exception e) {
+
+        }
+    }
+
+    public void url(String url) {
+        if (url == null || url.isEmpty()) {
+            return;
+        }
+        hibernateConfig.put("hibernate.connection.url",url);
+    }
+
+    public void driver(String driver,String dialect) {
+        if (driver == null || driver.isEmpty()) {
+            return;
+        }
+        if (dialect == null || dialect.isEmpty()) {
+            return;
+        }
+        hibernateConfig.put("hibernate.connection.driver_class",driver);
+        hibernateConfig.put("hibernate.dialect",dialect);
+    }
+
+    public void create() {
+        try {
+            Properties properties = new Properties();
+            InputStream inputStream = this.getClass().getModule().getResourceAsStream("hibernate.properties");
+
+            if (inputStream != null) {
                 properties.load(inputStream);
                 inputStream.close();
             }
 
-            for (Map.Entry<Object,Object> prop: defaultProp.entrySet()) {
+            for (Map.Entry<Object,Object> prop: hibernateConfig.entrySet()) {
                 if (!properties.contains(prop.getKey())) {
                     properties.put(prop.getKey(),prop.getValue());
                 }
             }
 
-            defaultPropSteam.close();
-
-            if (this.url != null) {
-                properties.put("hibernate.connection.url",url);
-            }
 
             properties.put(org.hibernate.jpa.AvailableSettings.LOADED_CLASSES,entities);
-
             this.entityFactory = Persistence.createEntityManagerFactory("default", properties);
+
             logger.info("database is ready.");
         } catch (Exception e) {
             logger.error("无法载入数据库链接。",e);
@@ -75,6 +100,9 @@ public  class EMFProviderFactory {
 
     @PreDestroy
     public void destroy(){
+        if (entityFactory == null) {
+            return;
+        }
         for (Map.Entry<Thread,EntityManager> ent: localEm.entrySet()) {
             EntityManager em = ent.getValue();
             if (em.isOpen()) {
@@ -85,10 +113,15 @@ public  class EMFProviderFactory {
                 em.close();
             }
         }
+
         entityFactory.close();
+        entityFactory = null;
     }
 
     public javax.persistence.EntityManager getEntityManager() {
+        if (entityFactory == null) {
+            throw new RuntimeException("please start jpa first");
+        }
         EntityManager entityManager = localEm.get(Thread.currentThread());
         if (entityManager == null || !entityManager.isOpen()) {
             entityManager = entityFactory.createEntityManager();
