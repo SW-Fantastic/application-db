@@ -14,4 +14,8 @@ module swdc.application.data {
     exports org.swdc.data.anno;
     exports org.swdc.data;
 
+    opens org.swdc.data to swdc.application.dependency;
+
+
+
 }
