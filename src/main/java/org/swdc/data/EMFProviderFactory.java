@@ -73,17 +73,20 @@ public class EMFProviderFactory {
 
     public void create() {
         try {
+            StackWalker stackWalker = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
+            Module callerModule = stackWalker.getCallerClass().getModule();
+
             Properties properties = new Properties();
-            InputStream inputStream = this.getClass().getModule().getResourceAsStream("hibernate.properties");
+            InputStream inputStream = callerModule.getResourceAsStream("database/hibernate.properties");
 
             if (inputStream != null) {
                 properties.load(inputStream);
                 inputStream.close();
             }
 
-            for (Map.Entry<Object,Object> prop: hibernateConfig.entrySet()) {
-                if (!properties.contains(prop.getKey())) {
-                    properties.put(prop.getKey(),prop.getValue());
+            for (String prop: hibernateConfig.stringPropertyNames()) {
+                if (!properties.containsKey(prop)) {
+                    properties.setProperty(prop,hibernateConfig.getProperty(prop));
                 }
             }
 
