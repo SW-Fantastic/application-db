@@ -11,6 +11,7 @@ import org.swdc.dependency.interceptor.ProcessPoint;
 
 import javax.persistence.EntityManager;
 import javax.persistence.EntityTransaction;
+import javax.persistence.FlushModeType;
 
 @Interceptor
 public class Transaction {
@@ -29,11 +30,14 @@ public class Transaction {
         try {
             Object result = null;
             if (transaction.isActive()) {
-                 return processPoint.process();
+                result = processPoint.process();
+                manager.flush();
+                return result;
             } else {
                 transaction.begin();
             }
             result = processPoint.process();
+            manager.flush();
             transaction.commit();
             manager.close();
             return result;

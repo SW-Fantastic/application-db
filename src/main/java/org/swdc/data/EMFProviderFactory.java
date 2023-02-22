@@ -8,10 +8,7 @@ import org.hibernate.Transaction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
-import javax.persistence.EntityTransaction;
-import javax.persistence.Persistence;
+import javax.persistence.*;
 import java.io.InputStream;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -93,7 +90,6 @@ public class EMFProviderFactory {
 
             properties.put(org.hibernate.jpa.AvailableSettings.LOADED_CLASSES,entities);
             this.entityFactory = Persistence.createEntityManagerFactory("default", properties);
-
             logger.info("database is ready.");
         } catch (Exception e) {
             logger.error("无法载入数据库链接。",e);

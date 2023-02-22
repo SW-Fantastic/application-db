@@ -109,9 +109,12 @@ public class DefaultRepository<E, ID> implements InvocationHandler,JPARepository
                 logger.error("fail to execute query: " + method.getName(), ex);
             } finally {
                 // 提交事务
-                if (autoCommit) {
-                    manager.getTransaction().commit();
-                    manager.close();
+                if (manager.getTransaction().isActive()) {
+                    manager.flush();
+                    if (autoCommit) {
+                        manager.getTransaction().commit();
+                        manager.close();
+                    }
                 }
             }
 
@@ -201,8 +204,8 @@ public class DefaultRepository<E, ID> implements InvocationHandler,JPARepository
             Object id = idField.get(entry);
             if (id == null) {
                 entityManager.persist(entry);
+                entityManager.flush();
                 if (autoCommit) {
-                    entityManager.flush();
                     entityManager.getTransaction().commit();
                 }
                 return entry;
@@ -211,15 +214,15 @@ public class DefaultRepository<E, ID> implements InvocationHandler,JPARepository
             if (entExisted == null) {
                 idField.set(entry, null);
                 entityManager.persist(entry);
+                entityManager.flush();
                 if (autoCommit) {
-                    entityManager.flush();
                     entityManager.getTransaction().commit();
                 }
                 return entry;
             }
             entry = entityManager.merge(entry);
+            entityManager.flush();
             if (autoCommit) {
-                entityManager.flush();
                 entityManager.getTransaction().commit();
             }
             return entry;
