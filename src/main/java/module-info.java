@@ -1,7 +1,7 @@
 module swdc.application.data {
 
-    //requires swdc.application.configs;
     requires swdc.application.dependency;
+    requires swdc.application.configs;
     requires hibernate.entitymanager;
     requires java.persistence;
     requires org.slf4j;

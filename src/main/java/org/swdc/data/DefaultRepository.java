@@ -2,6 +2,8 @@ package org.swdc.data;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swdc.config.Converter;
+import org.swdc.config.converters.Converters;
 import org.swdc.data.anno.Modify;
 import org.swdc.data.anno.Param;
 import org.swdc.data.anno.SQLQuery;
@@ -24,6 +26,8 @@ public class DefaultRepository<E, ID> implements InvocationHandler,JPARepository
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
+    private Converters converters = new Converters();
+
     public void init(EMFProviderFactory module, Class<E> eClass) {
         this.manager = module;
         this.eClass = eClass;
@@ -36,7 +40,12 @@ public class DefaultRepository<E, ID> implements InvocationHandler,JPARepository
         String name = method.getName();
         if (name.equals("getOne") || name.equals("getAll")
                 || name.equals("removeAll") || name.equals("save") || name.equals("remove")) {
-            return method.invoke(this,args);
+            try {
+                return method.invoke(this,args);
+            } catch (Exception e) {
+                logger.error("failed to execute method, ",e);
+                return null;
+            }
         }
         try {
             Object.class.getMethod(method.getName(),method.getParameterTypes());
@@ -87,16 +96,21 @@ public class DefaultRepository<E, ID> implements InvocationHandler,JPARepository
                             if (result.getClass() == returnClazz) {
                                 return result;
                             } else {
-                                try {
-                                    Method convertorMethod = returnClazz.getMethod("valueOf", String.class);
-                                    return convertorMethod.invoke(null,result.toString());
-                                } catch (Exception e) {
+                                Converter converter = converters.getConverter(returnClazz,result.getClass());
+                                if (converter == null) {
                                     return null;
                                 }
+                                return converter.convert(result);
                             }
                         }
                     } else {
                         return query.executeUpdate();
+                    }
+                } else {
+                    if (modify != null) {
+                        query.executeUpdate();
+                    } else {
+                        query.getResultList();
                     }
                 }
                 return null;
@@ -117,7 +131,6 @@ public class DefaultRepository<E, ID> implements InvocationHandler,JPARepository
                     }
                 }
             }
-
         }
         return null;
     }
@@ -134,6 +147,8 @@ public class DefaultRepository<E, ID> implements InvocationHandler,JPARepository
         } else if (method.getReturnType() == eClass) {
             query = em.createQuery(sqlQuery.value(),eClass);
         } else if (Collection.class.isAssignableFrom(method.getReturnType())){
+            query = em.createQuery(sqlQuery.value());
+        } else {
             query = em.createQuery(sqlQuery.value());
         }
 
