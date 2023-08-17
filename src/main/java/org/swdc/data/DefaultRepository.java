@@ -1,5 +1,6 @@
 package org.swdc.data;
 
+import org.hibernate.proxy.HibernateProxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swdc.config.Converter;
@@ -51,7 +52,6 @@ public class DefaultRepository<E, ID> implements InvocationHandler,JPARepository
             Object.class.getMethod(method.getName(),method.getParameterTypes());
             return method.invoke(this,args);
         } catch (Exception ex) {
-
         }
         Query query = resolveByQuery(manager, method, args);
         Modify modify = method.getAnnotation(Modify.class);
@@ -280,8 +280,22 @@ public class DefaultRepository<E, ID> implements InvocationHandler,JPARepository
             entityManager.getTransaction().begin();
         }
         for (E entity: entities) {
-            entityManager.refresh(entity);
-            entityManager.remove(entity);
+            if (entity instanceof HibernateProxy) {
+                entityManager.refresh(entity);
+            }
+            try {
+                entityManager.remove(entity);
+            } catch (Exception ex) {
+                Field idField = getIdField(eClass);
+                idField.setAccessible(true);
+                try {
+                    ID id = (ID) idField.get(entity);
+                    E target = getOne(id);
+                    entityManager.remove(target);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
         }
         if(autoCommit) {
             entityManager.getTransaction().commit();

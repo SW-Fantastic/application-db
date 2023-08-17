@@ -135,8 +135,6 @@ public class EMFProviderFactory {
             localEm.put(Thread.currentThread(),entityManager);
         }
 
-        entityManager.clear();
-
         return entityManager;
     }
 
