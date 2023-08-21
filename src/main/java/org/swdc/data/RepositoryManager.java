@@ -5,8 +5,9 @@ import jakarta.inject.Named;
 import org.swdc.data.anno.Repository;
 import org.swdc.dependency.DependencyContext;
 import org.swdc.dependency.DependencyScope;
-import org.swdc.dependency.utils.AnnotationDescription;
-import org.swdc.dependency.utils.AnnotationUtil;
+import org.swdc.ours.common.annotations.AnnotationDescription;
+import org.swdc.ours.common.annotations.AnnotationDescriptions;
+import org.swdc.ours.common.annotations.Annotations;
 
 import javax.persistence.Entity;
 import java.lang.reflect.ParameterizedType;
@@ -26,7 +27,7 @@ public class RepositoryManager implements DependencyScope {
 
     @Override
     public <T> T getByClass(Class<T> clazz) {
-        Map<Class,AnnotationDescription> descs = AnnotationUtil.getAnnotations(clazz);
+        AnnotationDescriptions descs = Annotations.getAnnotations(clazz);
         List<Object> list = typedEntities.get(clazz);
         if (list != null && list.size() > 0) {
             if (list.size() > 1) {
@@ -43,8 +44,8 @@ public class RepositoryManager implements DependencyScope {
         repository.init(this.context.getByClass(EMFProviderFactory.class), entityClass);
         JPARepository jpaRepository = (JPARepository) Proxy.newProxyInstance(getClass().getClassLoader(),new Class[]{clazz},repository);
 
-        AnnotationDescription named = AnnotationUtil.findAnnotationIn(descs,Named.class);
-        AnnotationDescription resource = AnnotationUtil.findAnnotationIn(descs,Resource.class);
+        AnnotationDescription named = Annotations.findAnnotationIn(descs,Named.class);
+        AnnotationDescription resource = Annotations.findAnnotationIn(descs,Resource.class);
 
         String name =  clazz.getName();
         if (named != null) {

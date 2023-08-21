@@ -3,11 +3,11 @@ package org.swdc.data;
 import org.hibernate.proxy.HibernateProxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.swdc.config.Converter;
-import org.swdc.config.converters.Converters;
 import org.swdc.data.anno.Modify;
 import org.swdc.data.anno.Param;
 import org.swdc.data.anno.SQLQuery;
+import org.swdc.ours.common.type.Converter;
+import org.swdc.ours.common.type.Converters;
 
 import javax.persistence.EntityManager;
 import javax.persistence.Id;

@@ -2,7 +2,7 @@ package org.swdc.data;
 
 import org.hibernate.proxy.HibernateProxyHelper;
 import org.swdc.data.anno.StatelessIgnore;
-import org.swdc.dependency.utils.ReflectionUtil;
+import org.swdc.ours.common.type.ClassTypeAndMethods;
 
 import javax.persistence.Entity;
 import javax.persistence.ManyToOne;
@@ -70,8 +70,8 @@ public class StatelessHelper {
                 try {
                     // Hibernate的代理会使直接操作字段变得很麻烦，
                     // 所以使用对应的Getter和Setter进行操作。
-                    Method getter = ReflectionUtil.extractGetter(field);
-                    Method setter = ReflectionUtil.extractSetter(field);
+                    Method getter = ClassTypeAndMethods.extractGetter(field);
+                    Method setter = ClassTypeAndMethods.extractSetter(field);
                     if (getter == null || setter == null) {
                         continue;
                     }

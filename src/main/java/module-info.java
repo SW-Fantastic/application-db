@@ -10,6 +10,7 @@ module swdc.application.data {
     requires jakarta.annotation;
     requires com.fasterxml.classmate;
     requires java.xml.bind;
+    requires swdc.commons;
 
     exports org.swdc.data.anno;
     exports org.swdc.data;
