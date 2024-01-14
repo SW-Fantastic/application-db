@@ -5,10 +5,12 @@ import org.swdc.data.anno.StatelessIgnore;
 import org.swdc.ours.common.type.ClassTypeAndMethods;
 
 import javax.persistence.Entity;
+import javax.persistence.Id;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -35,7 +37,11 @@ public class StatelessHelper {
      * @return 复制后的DTO对象
      */
     public static <T> T stateless(T entity) {
-        return stateless(entity,false);
+        Field idField = getIdField(entity.getClass());
+        if (idField == null) {
+            throw new RuntimeException("can not found a field annotated with Id");
+        }
+        return stateless(entity,new ArrayList<>());
     }
 
     /**
@@ -46,19 +52,24 @@ public class StatelessHelper {
      * Transaction注解开启事务处理。
      *
      * @param entity 被Hibernate管理的Entity
-     * @param reverse 此对象是否处于其他对象的关系中
-     *                根据此项将会忽略一些字段的复制以防止StackOverflow
-     *                和不必要的数据加载。
+     * @param reversId 如果正在处理的对象是关联的乙方，这里传递另一方的id。
      *
-     *                使用StatelessIgnore注解将会阻止字段在本方法的Copy。
      * @see StatelessIgnore
      *
      * @param <T> 对象的类型
      * @return 复制后的EntityDTO
      */
-    public static <T> T stateless(T entity, boolean reverse) {
+    public static <T> T stateless(T entity, List<Object> reversId) {
         try {
+            if (entity == null) {
+                return null;
+            }
+
             Class type = entity.getClass();
+            Field idField = getIdField(type);
+            idField.setAccessible(true);
+            Object entityId = idField.get(entity);
+
             if (entity.getClass().getName().contains("HibernateProxy")) {
                 // 是hibernate的代理类，读取它原本的类型。
                 type = HibernateProxyHelper.getClassWithoutInitializingProxy(entity);
@@ -77,7 +88,7 @@ public class StatelessHelper {
                     }
                     if (field.getAnnotation(StatelessIgnore.class) != null) {
                         StatelessIgnore ignore = field.getAnnotation(StatelessIgnore.class);
-                        if (ignore.reverse() && reverse) {
+                        if (ignore.reverse() && reversId.contains(entityId)) {
                             continue;
                         } else if (!ignore.reverse()) {
                             continue;
@@ -85,26 +96,30 @@ public class StatelessHelper {
                     }
                     if (field.getAnnotation(ManyToOne.class) != null) {
                         Object obj = getter.invoke(entity);
-                        setter.invoke(instance,stateless(obj,true));
+                        reversId.add(entityId);
+                        setter.invoke(instance,stateless(obj,reversId));
+                        reversId.remove(entityId);
                     } else if (field.getType().getAnnotation(Entity.class) != null) {
                         Object target = getter.invoke(entity);
                         setter.invoke(instance, stateless(target));
                     } else if (field.getAnnotation(OneToMany.class) != null) {
-                        if (reverse) {
+                        if (reversId.contains(entityId)) {
                             continue;
                         }
+                        reversId.add(entityId);
                         Collection<Object> collection = (Collection) getter.invoke(entity);
                         if (List.class.isAssignableFrom(field.getType())) {
                             List rest = collection.stream()
-                                    .map(e -> stateless(e,true))
+                                    .map(e -> stateless(e,reversId))
                                     .collect(Collectors.toList());
                             setter.invoke(instance,rest);
                         } else if (Set.class.isAssignableFrom(field.getType())){
                             Set rest = collection.stream()
-                                    .map(e -> stateless(e,true))
+                                    .map(e -> stateless(e,reversId))
                                     .collect(Collectors.toSet());
                             setter.invoke(instance,rest);
                         }
+                        reversId.remove(entityId);
                     } else {
                         setter.invoke(instance,getter.invoke(entity));
                     }
@@ -118,6 +133,26 @@ public class StatelessHelper {
         }
     }
 
+
+    public static Field getIdField(Class target) {
+        Class clazz = target;
+        while (clazz != null) {
+            Field[] fields = clazz.getDeclaredFields();
+            for (Field field : fields) {
+                Id id = field.getAnnotation(Id.class);
+                if (id == null) {
+                    continue;
+                } else {
+                    return field;
+                }
+            }
+            clazz = clazz.getSuperclass();
+            if (clazz == Object.class) {
+                return null;
+            }
+        }
+        return null;
+    }
 
 
 }

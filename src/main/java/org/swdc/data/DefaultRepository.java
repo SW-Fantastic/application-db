@@ -248,23 +248,7 @@ public class DefaultRepository<E, ID> implements InvocationHandler,JPARepository
     }
 
     private Field getIdField(Class target) {
-        Class clazz = target;
-        while (clazz != null) {
-            Field[] fields = clazz.getDeclaredFields();
-            for (Field field : fields) {
-                Id id = field.getAnnotation(Id.class);
-                if (id == null) {
-                    continue;
-                } else {
-                    return field;
-                }
-            }
-            clazz = clazz.getSuperclass();
-            if (clazz == Object.class) {
-                return null;
-            }
-        }
-        return null;
+        return StatelessHelper.getIdField(target);
     }
 
     @Override
