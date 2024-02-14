@@ -4,10 +4,7 @@ import org.hibernate.proxy.HibernateProxyHelper;
 import org.swdc.data.anno.StatelessIgnore;
 import org.swdc.ours.common.type.ClassTypeAndMethods;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
+import javax.persistence.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -102,7 +99,7 @@ public class StatelessHelper {
                     } else if (field.getType().getAnnotation(Entity.class) != null) {
                         Object target = getter.invoke(entity);
                         setter.invoke(instance, stateless(target));
-                    } else if (field.getAnnotation(OneToMany.class) != null) {
+                    } else if (field.getAnnotation(OneToMany.class) != null || field.getAnnotation(ManyToMany.class) != null) {
                         if (reversId.contains(entityId)) {
                             continue;
                         }
