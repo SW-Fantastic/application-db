@@ -7,10 +7,7 @@ import org.swdc.ours.common.type.ClassTypeAndMethods;
 import javax.persistence.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -38,7 +35,7 @@ public class StatelessHelper {
         if (idField == null) {
             throw new RuntimeException("can not found a field annotated with Id");
         }
-        return stateless(entity,new ArrayList<>());
+        return stateless(entity,new ArrayDeque<>());
     }
 
     /**
@@ -56,7 +53,7 @@ public class StatelessHelper {
      * @param <T> 对象的类型
      * @return 复制后的EntityDTO
      */
-    public static <T> T stateless(T entity, List<Object> reversId) {
+    public static <T> T stateless(T entity, Deque<Object> reversId) {
         try {
             if (entity == null) {
                 return null;
@@ -93,17 +90,27 @@ public class StatelessHelper {
                     }
                     if (field.getAnnotation(ManyToOne.class) != null) {
                         Object obj = getter.invoke(entity);
-                        reversId.add(entityId);
+                        reversId.push(entityId);
                         setter.invoke(instance,stateless(obj,reversId));
-                        reversId.remove(entityId);
+                        reversId.pop();
                     } else if (field.getType().getAnnotation(Entity.class) != null) {
-                        Object target = getter.invoke(entity);
-                        setter.invoke(instance, stateless(target));
+
+                        if (field.getAnnotation(OneToOne.class) != null) {
+                            reversId.push(entityId);
+                            Object target = getter.invoke(entity);
+                            setter.invoke(instance, stateless(target));
+                            reversId.pop();
+                        } else {
+                            Object target = getter.invoke(entity);
+                            setter.invoke(instance, stateless(target));
+                        }
+
+
                     } else if (field.getAnnotation(OneToMany.class) != null || field.getAnnotation(ManyToMany.class) != null) {
                         if (reversId.contains(entityId)) {
                             continue;
                         }
-                        reversId.add(entityId);
+                        reversId.push(entityId);
                         Collection<Object> collection = (Collection) getter.invoke(entity);
                         if (List.class.isAssignableFrom(field.getType())) {
                             List rest = collection.stream()
@@ -116,7 +123,7 @@ public class StatelessHelper {
                                     .collect(Collectors.toSet());
                             setter.invoke(instance,rest);
                         }
-                        reversId.remove(entityId);
+                        reversId.pop();
                     } else {
                         setter.invoke(instance,getter.invoke(entity));
                     }
