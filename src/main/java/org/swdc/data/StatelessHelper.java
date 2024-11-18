@@ -5,6 +5,7 @@ import org.swdc.data.anno.StatelessIgnore;
 import org.swdc.ours.common.type.ClassTypeAndMethods;
 
 import javax.persistence.*;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.*;
@@ -69,68 +70,82 @@ public class StatelessHelper {
                 type = HibernateProxyHelper.getClassWithoutInitializingProxy(entity);
             }
             T instance = (T)type.getConstructor().newInstance();
-            Field[] fields = type.getDeclaredFields();
-
-            for (Field field: fields) {
-                try {
-                    // Hibernate的代理会使直接操作字段变得很麻烦，
-                    // 所以使用对应的Getter和Setter进行操作。
-                    Method getter = ClassTypeAndMethods.extractGetter(field);
-                    Method setter = ClassTypeAndMethods.extractSetter(field);
-                    if (getter == null || setter == null) {
-                        continue;
-                    }
-                    if (field.getAnnotation(StatelessIgnore.class) != null) {
-                        StatelessIgnore ignore = field.getAnnotation(StatelessIgnore.class);
-                        if (ignore.reverse() && reversId.contains(entityId)) {
-                            continue;
-                        } else if (!ignore.reverse()) {
+            Class currentType = type;
+            while (currentType != Object.class) {
+                Field[] fields = currentType.getDeclaredFields();
+                for (Field field: fields) {
+                    try {
+                        // Hibernate的代理会使直接操作字段变得很麻烦，
+                        // 所以使用对应的Getter和Setter进行操作。
+                        Method getter = ClassTypeAndMethods.extractGetter(field);
+                        Method setter = ClassTypeAndMethods.extractSetter(field);
+                        if (getter == null || setter == null) {
                             continue;
                         }
-                    }
-                    if (field.getAnnotation(ManyToOne.class) != null) {
-                        Object obj = getter.invoke(entity);
-                        reversId.push(entityId);
-                        setter.invoke(instance,stateless(obj,reversId));
-                        reversId.pop();
-                    } else if (field.getType().getAnnotation(Entity.class) != null) {
-
-                        if (field.getAnnotation(OneToOne.class) != null) {
+                        if (field.getAnnotation(StatelessIgnore.class) != null) {
+                            StatelessIgnore ignore = field.getAnnotation(StatelessIgnore.class);
+                            if (ignore.reverse() && reversId.contains(entityId)) {
+                                continue;
+                            } else if (!ignore.reverse()) {
+                                continue;
+                            }
+                        }
+                        if (field.getAnnotation(ManyToOne.class) != null) {
+                            Object obj = getter.invoke(entity);
                             reversId.push(entityId);
-                            Object target = getter.invoke(entity);
-                            setter.invoke(instance, stateless(target));
+                            setter.invoke(instance,stateless(obj,reversId));
+                            reversId.pop();
+                        } else if (field.getType().getAnnotation(Entity.class) != null) {
+
+                            if (field.getAnnotation(OneToOne.class) != null) {
+                                reversId.push(entityId);
+                                Object target = getter.invoke(entity);
+                                setter.invoke(instance, stateless(target));
+                                reversId.pop();
+                            } else {
+                                Object target = getter.invoke(entity);
+                                setter.invoke(instance, stateless(target));
+                            }
+
+
+                        } else if (field.getAnnotation(OneToMany.class) != null || field.getAnnotation(ManyToMany.class) != null) {
+                            if (reversId.contains(entityId)) {
+                                continue;
+                            }
+                            reversId.push(entityId);
+                            Collection<Object> collection = (Collection) getter.invoke(entity);
+                            if (List.class.isAssignableFrom(field.getType())) {
+                                List rest = collection.stream()
+                                        .map(e -> stateless(e,reversId))
+                                        .collect(Collectors.toList());
+                                setter.invoke(instance,rest);
+                            } else if (Set.class.isAssignableFrom(field.getType())){
+                                Set rest = collection.stream()
+                                        .map(e -> stateless(e,reversId))
+                                        .collect(Collectors.toSet());
+                                setter.invoke(instance,rest);
+                            }
                             reversId.pop();
                         } else {
-                            Object target = getter.invoke(entity);
-                            setter.invoke(instance, stateless(target));
+                            setter.invoke(instance,getter.invoke(entity));
                         }
-
-
-                    } else if (field.getAnnotation(OneToMany.class) != null || field.getAnnotation(ManyToMany.class) != null) {
-                        if (reversId.contains(entityId)) {
-                            continue;
-                        }
-                        reversId.push(entityId);
-                        Collection<Object> collection = (Collection) getter.invoke(entity);
-                        if (List.class.isAssignableFrom(field.getType())) {
-                            List rest = collection.stream()
-                                    .map(e -> stateless(e,reversId))
-                                    .collect(Collectors.toList());
-                            setter.invoke(instance,rest);
-                        } else if (Set.class.isAssignableFrom(field.getType())){
-                            Set rest = collection.stream()
-                                    .map(e -> stateless(e,reversId))
-                                    .collect(Collectors.toSet());
-                            setter.invoke(instance,rest);
-                        }
-                        reversId.pop();
-                    } else {
-                        setter.invoke(instance,getter.invoke(entity));
+                    } catch (Exception e) {
+                        // ignore
                     }
-                } catch (Exception e) {
-                    // ignore
                 }
+
+                currentType = currentType.getSuperclass();
+                if (currentType == Object.class) {
+                    break;
+                }
+
+                Annotation anno = currentType.getAnnotation(MappedSuperclass.class);
+                if (anno == null) {
+                    break;
+                }
+
             }
+
             return instance;
         } catch (Exception e) {
             throw new RuntimeException(e);
