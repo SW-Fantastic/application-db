@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.swdc.data.anno.Modify;
 import org.swdc.data.anno.Param;
 import org.swdc.data.anno.SQLQuery;
+import org.swdc.data.anno.SQLQueryFactory;
 import org.swdc.ours.common.type.Converter;
 import org.swdc.ours.common.type.Converters;
 
@@ -28,6 +29,9 @@ public class DefaultRepository<E, ID> implements InvocationHandler,JPARepository
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     private Converters converters = new Converters();
+
+    private Map<Class, SQLFactory> sqlFactoryMap = new HashMap<>();
+
 
     public void init(EMFProviderFactory module, Class<E> eClass) {
         this.manager = module;
@@ -136,43 +140,83 @@ public class DefaultRepository<E, ID> implements InvocationHandler,JPARepository
     }
 
     public Query resolveByQuery(EntityManager em, Method method, Object[] args) {
+
         SQLQuery sqlQuery = method.getAnnotation(SQLQuery.class);
         Query query = null;
-        if (method.getReturnType() == Integer.class || method.getReturnType() == int.class) {
-            // 聚合函数
-            query = em.createQuery(sqlQuery.value(),Integer.class);
-        } else if (method.getReturnType() == Long.class || method.getReturnType() == long.class) {
-            // 聚合函数
-            query = em.createQuery(sqlQuery.value(),Long.class);
-        } else if (method.getReturnType() == eClass) {
-            query = em.createQuery(sqlQuery.value(),eClass);
-        } else if (Collection.class.isAssignableFrom(method.getReturnType())){
-            query = em.createQuery(sqlQuery.value());
+
+        if (sqlQuery == null) {
+            SQLQueryFactory factory = method.getAnnotation(SQLQueryFactory.class);
+            if (factory != null) {
+                try {
+
+                    SQLFactory sqlFactory = null;
+
+                    if (sqlFactoryMap.containsKey(factory.value())) {
+                        sqlFactory = sqlFactoryMap.get(factory.value());
+                    } else {
+                        sqlFactory = factory.value()
+                                .newInstance();
+                        sqlFactoryMap.put(factory.value(),sqlFactory);
+                    }
+
+                    Map<String,Object> params = new HashMap<>();
+                    Parameter[] parameters = method.getParameters();
+                    for(int index = 0; index < parameters.length; index ++) {
+                        Param param = parameters[index].getAnnotation(Param.class);
+                        if (param != null) {
+                            params.put(param.value(),args[index]);
+                        }
+                    }
+
+                    query = sqlFactory.createQuery(em, new SQLParams(params));
+                    if (query == null) {
+                        return null;
+                    }
+
+                } catch (Exception e) {
+                    return null;
+                }
+            }
         } else {
-            query = em.createQuery(sqlQuery.value());
+
+            if (method.getReturnType() == Integer.class || method.getReturnType() == int.class) {
+                // 聚合函数
+                query = em.createQuery(sqlQuery.value(),Integer.class);
+            } else if (method.getReturnType() == Long.class || method.getReturnType() == long.class) {
+                // 聚合函数
+                query = em.createQuery(sqlQuery.value(),Long.class);
+            } else if (method.getReturnType() == eClass) {
+                query = em.createQuery(sqlQuery.value(),eClass);
+            } else if (Collection.class.isAssignableFrom(method.getReturnType())){
+                query = em.createQuery(sqlQuery.value());
+            } else {
+                query = em.createQuery(sqlQuery.value());
+            }
+
+            Parameter[] params = method.getParameters();
+            if (query.getParameters().size() != method.getParameters().length) {
+                logger.error("can not create query because parameters size dose not matches");
+                logger.error("method: " + method.getName());
+                return null;
+            }
+            for (int index = 0; index <params.length; index ++) {
+                Param qParam = params[index].getAnnotation(Param.class);
+                String name = qParam.value();
+                if (qParam.searchBy()) {
+                    query.setParameter(name,"%" + args[index] + "%");
+                } else {
+                    query.setParameter(name,args[index]);
+                }
+            }
+            if (sqlQuery.firstResult() != -1) {
+                query.setFirstResult(sqlQuery.firstResult());
+            }
+            if(sqlQuery.maxResult() != -1) {
+                query.setMaxResults(sqlQuery.maxResult());
+            }
+
         }
 
-        Parameter[] params = method.getParameters();
-        if (query.getParameters().size() != method.getParameters().length) {
-            logger.error("can not create query because parameters size dose not matches");
-            logger.error("method: " + method.getName());
-            return null;
-        }
-        for (int index = 0; index <params.length; index ++) {
-            Param qParam = params[index].getAnnotation(Param.class);
-            String name = qParam.value();
-            if (qParam.searchBy()) {
-                query.setParameter(name,"%" + args[index] + "%");
-            } else {
-                query.setParameter(name,args[index]);
-            }
-        }
-        if (sqlQuery.firstResult() != -1) {
-            query.setFirstResult(sqlQuery.firstResult());
-        }
-        if(sqlQuery.maxResult() != -1) {
-            query.setMaxResults(sqlQuery.maxResult());
-        }
         return query;
     }
 
