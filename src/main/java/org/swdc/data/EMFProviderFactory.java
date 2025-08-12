@@ -4,11 +4,15 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.EntityTransaction;
+import jakarta.persistence.Persistence;
 import org.hibernate.Transaction;
+import org.hibernate.cfg.AvailableSettings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.persistence.*;
 import java.io.InputStream;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,7 +21,7 @@ public class EMFProviderFactory {
 
     private EntityManagerFactory entityFactory;
 
-    private static Map<Thread, javax.persistence.EntityManager> localEm = new ConcurrentHashMap<>();
+    private static Map<Thread, EntityManager> localEm = new ConcurrentHashMap<>();
 
     private Logger logger = LoggerFactory.getLogger(EMFProviderFactory.class);
 
@@ -88,7 +92,7 @@ public class EMFProviderFactory {
             }
 
 
-            properties.put(org.hibernate.jpa.AvailableSettings.LOADED_CLASSES,entities);
+            properties.put(AvailableSettings.LOADED_CLASSES,entities);
             this.entityFactory = Persistence.createEntityManagerFactory("default", properties);
             logger.info("database is ready.");
         } catch (Exception e) {
@@ -116,7 +120,7 @@ public class EMFProviderFactory {
         entityFactory = null;
     }
 
-    public javax.persistence.EntityManager getEntityManager() {
+    public EntityManager getEntityManager() {
         if (entityFactory == null) {
             throw new RuntimeException("please start jpa first");
         }

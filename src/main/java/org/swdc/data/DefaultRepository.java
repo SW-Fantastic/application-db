@@ -1,5 +1,7 @@
 package org.swdc.data;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Query;
 import org.hibernate.proxy.HibernateProxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,9 +12,6 @@ import org.swdc.data.anno.SQLQueryFactory;
 import org.swdc.ours.common.type.Converter;
 import org.swdc.ours.common.type.Converters;
 
-import javax.persistence.EntityManager;
-import javax.persistence.Id;
-import javax.persistence.Query;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;

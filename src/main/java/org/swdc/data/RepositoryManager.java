@@ -9,7 +9,6 @@ import org.swdc.ours.common.annotations.AnnotationDescription;
 import org.swdc.ours.common.annotations.AnnotationDescriptions;
 import org.swdc.ours.common.annotations.Annotations;
 
-import javax.persistence.Entity;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;

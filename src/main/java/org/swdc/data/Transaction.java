@@ -1,6 +1,8 @@
 package org.swdc.data;
 
 import jakarta.inject.Inject;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityTransaction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swdc.data.anno.Transactional;
@@ -9,9 +11,6 @@ import org.swdc.dependency.annotations.Interceptor;
 import org.swdc.dependency.interceptor.AspectAt;
 import org.swdc.dependency.interceptor.ProcessPoint;
 
-import javax.persistence.EntityManager;
-import javax.persistence.EntityTransaction;
-import javax.persistence.FlushModeType;
 
 @Interceptor
 public class Transaction {

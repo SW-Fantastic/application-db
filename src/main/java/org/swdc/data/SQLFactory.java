@@ -1,7 +1,8 @@
 package org.swdc.data;
 
-import javax.persistence.EntityManager;
-import javax.persistence.Query;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Query;
 
 public interface SQLFactory {
 
