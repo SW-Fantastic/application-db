@@ -131,12 +131,21 @@ public class StatelessHelper {
                         }
                         reversId.push(entityId);
                         Collection<Object> collection = (Collection) getter.invoke(entity);
+
                         if (List.class.isAssignableFrom(field.getType())) {
+                            if (collection == null) {
+                                setter.invoke(instance,Collections.emptyList());
+                                continue;
+                            }
                             List rest = collection.stream()
                                     .map(e -> stateless(e,typedReversId))
                                     .collect(Collectors.toList());
                             setter.invoke(instance,rest);
                         } else if (Set.class.isAssignableFrom(field.getType())){
+                            if (collection == null) {
+                                setter.invoke(instance,Collections.emptySet());
+                                continue;
+                            }
                             Set rest = collection.stream()
                                     .map(e -> stateless(e,typedReversId))
                                     .collect(Collectors.toSet());
