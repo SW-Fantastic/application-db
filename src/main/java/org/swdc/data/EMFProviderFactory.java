@@ -10,6 +10,7 @@ import jakarta.persistence.EntityTransaction;
 import jakarta.persistence.Persistence;
 import org.hibernate.Transaction;
 import org.hibernate.cfg.AvailableSettings;
+import org.hibernate.jpa.HibernatePersistenceProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,8 +93,9 @@ public class EMFProviderFactory {
             }
 
 
+            HibernatePersistenceProvider persistenceProvider = new HibernatePersistenceProvider();
             properties.put(AvailableSettings.LOADED_CLASSES,entities);
-            this.entityFactory = Persistence.createEntityManagerFactory("default", properties);
+            this.entityFactory = persistenceProvider.createEntityManagerFactory("default", properties);
             logger.info("database is ready.");
         } catch (Exception e) {
             logger.error("无法载入数据库链接。",e);
